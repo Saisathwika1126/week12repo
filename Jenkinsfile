@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -6,72 +5,52 @@ pipeline {
 
         stage('Run Selenium Tests with pytest') {
             steps {
-                echo 'Running Selenium Tests using pytest'
+                echo "Running Selenium Tests using pytest"
 
+                // Install Python dependencies
                 sh 'python3 -m pip install -r requirements.txt'
-                sh 'python3 app.py > flask.log 2>&1 &'
+
+                // Start Flask application in background
+                sh 'python3 app.py &'
+
+                // Wait for Flask application to start
                 sh 'sleep 5'
+
+                // Run Selenium tests
                 sh 'python3 -m pytest -v'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker Image: dedeepya200/week12:latest'
+                echo "Build Docker Image"
 
-                sh 'docker build -t dedeepya200/week12:latest .'
+                sh "docker build -t saisathwika/week12:latest ."
             }
         }
 
         stage('Docker Login') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
-                        -u "$DOCKER_USERNAME" --password-stdin
-                    '''
+                  sh 'docker login -u saisathwika1126 -p Sathwika@1126'
                 }
             }
-        }
 
-        stage('Push Docker Image') {
+        stage('Push Docker Image to Docker Hub') {
             steps {
-                echo 'Pushing Docker Image'
+                echo "Push Docker Image to Docker Hub"
 
-                sh 'docker push dedeepya200/week12:latest'
-            }
-        }
 
-        stage('Check Kubernetes Connection') {
-            steps {
-                sh 'kubectl config current-context'
-                sh 'kubectl get nodes'
+                sh "docker push saisathwika1126/week12:latest"
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
+                echo "Deploying application to Kubernetes"
+
+                sh 'kubectl apply -f deployment.yaml --validate=false'
+
                 sh 'kubectl apply -f service.yaml'
-
-                sh '''
-                    kubectl set image deployment/flaskapp \
-                    flaskapp=dedeepya200/week12:latest
-                '''
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                sh 'kubectl rollout status deployment/flaskapp'
-                sh 'kubectl get deployments'
-                sh 'kubectl get pods'
-                sh 'kubectl get services'
             }
         }
     }
